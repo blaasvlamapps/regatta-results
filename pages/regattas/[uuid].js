@@ -231,6 +231,27 @@ export default function RegattaPage() {
     <div className="container">
       <Head>
         <title>{regatta ? `${regatta.name} | Regatta` : "Regatta"}</title>
+        <meta
+          name="description"
+          content={
+            regatta
+              ? `Browse ${regatta.name} (${regatta.year}) with events, lane draws, and results.`
+              : "Browse regatta events, lane draws, and results."
+          }
+        />
+        <meta
+          property="og:title"
+          content={regatta ? `${regatta.name} | Regatta` : "Regatta"}
+        />
+        <meta
+          property="og:description"
+          content={
+            regatta
+              ? `Browse ${regatta.name} (${regatta.year}) with events, lane draws, and results.`
+              : "Browse regatta events, lane draws, and results."
+          }
+        />
+        <meta property="og:type" content="website" />
       </Head>
       <main>
         <section className="card">

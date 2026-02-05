@@ -42,8 +42,18 @@ export default function Home() {
   return (
     <div className="container">
       <Head>
-        <title>Regatta Results</title>
+        <title>Regatta Results | Home</title>
         <link rel="icon" href="/favicon.ico" />
+        <meta
+          name="description"
+          content="Explore regatta results by year and dive into event details, lane draws, and race results."
+        />
+        <meta property="og:title" content="Regatta Results" />
+        <meta
+          property="og:description"
+          content="Explore regatta results by year and dive into event details, lane draws, and race results."
+        />
+        <meta property="og:type" content="website" />
       </Head>
 
       <main>
