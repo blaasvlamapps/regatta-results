@@ -2,9 +2,22 @@ const { schedule } = require("@netlify/functions");
 const cheerio = require("cheerio");
 const { Pool } = require("pg");
 
+function normalizeConnectionString(value) {
+  if (!value) return value;
+  const url = new URL(value);
+  const sslmode = url.searchParams.get("sslmode");
+  if (sslmode && sslmode.toLowerCase() === "require") {
+    if (!url.searchParams.has("uselibpqcompat")) {
+      url.searchParams.set("uselibpqcompat", "true");
+    }
+  }
+  return url.toString();
+}
+
 const pool = new Pool({
-  connectionString:
-    process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL,
+  connectionString: normalizeConnectionString(
+    process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL
+  ),
   ssl: { rejectUnauthorized: false },
 });
 
