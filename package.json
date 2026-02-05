@@ -9,7 +9,10 @@
     "export": "next build && next export"
   },
   "dependencies": {
+    "@netlify/functions": "^5.1.2",
+    "cheerio": "^1.2.0",
     "next": "^16.0.7",
+    "pg": "^8.18.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1"
   }
