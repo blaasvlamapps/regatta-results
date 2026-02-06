@@ -1,7 +1,6 @@
 import Head from "next/head";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Header from "@components/Header";
 import Footer from "@components/Footer";
 
 export default function Home() {
@@ -57,9 +56,8 @@ export default function Home() {
       </Head>
 
       <main>
-        <Header title="Regatta Results" />
-
         <section className="card">
+          <h1 className="title">Regatta Results</h1>
           <h2>Regattas by year</h2>
           {loading ? (
             <div className="skeleton-list">
