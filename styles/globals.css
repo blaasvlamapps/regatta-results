@@ -212,7 +212,6 @@ code {
 }
 
 .search-form button {
-  padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 12px;
   background: linear-gradient(135deg, var(--primary), var(--primary-dark));
@@ -223,7 +222,6 @@ code {
 }
 
 .search-form button:hover {
-  transform: translateY(-1px);
   box-shadow: 0 10px 20px rgba(79, 70, 229, 0.25);
 }
 
