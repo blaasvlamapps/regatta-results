@@ -1,5 +1,7 @@
 import Head from "next/head";
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/router";
+import Nav from "@components/Nav";
 
 function getDataField(row, keys) {
     if (!row || !row.data) return null;
@@ -102,6 +104,7 @@ function getDataField(row, keys) {
   }
 
 export default function RegattaPage() {
+  const router = useRouter();
   const [regatta, setRegatta] = useState(null);
   const [races, setRaces] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -142,8 +145,12 @@ export default function RegattaPage() {
   useEffect(() => {
     let mounted = true;
     async function loadRegatta() {
+      if (!router.isReady) return;
+      const uuid =
+        typeof router.query.uuid === "string" ? router.query.uuid : "";
+      if (!uuid) return;
+      setLoading(true);
       try {
-        const uuid = window.location.pathname.split("/").pop();
         const response = await fetch(`/api/regattas/${uuid}`);
         if (!response.ok) {
           throw new Error("Failed to load regatta");
@@ -157,6 +164,8 @@ export default function RegattaPage() {
       } catch (error) {
         if (mounted) {
           setLoadError("Unable to load regatta details.");
+          setRegatta(null);
+          setRaces([]);
         }
       } finally {
         if (mounted) {
@@ -169,7 +178,7 @@ export default function RegattaPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [router.isReady, router.query.uuid]);
 
   useEffect(() => {
     function handleScroll() {
@@ -264,28 +273,28 @@ export default function RegattaPage() {
         <meta property="og:type" content="website" />
       </Head>
       <main>
+        <Nav />
         <section
           className={`card regatta-hero ${isCollapsed ? "is-collapsed" : ""}`}
         >
-          <a href="/" className="compact-back">
-            Regatta Results
-          </a>
-          {loading ? (
-            <div className="skeleton-list">
-              <div className="skeleton skeleton-title" />
-              <div className="skeleton skeleton-line" />
-            </div>
-          ) : loadError ? (
-            <p className="muted">{loadError}</p>
-          ) : (
-            <>
-              <h1 className="title">{regatta?.name}</h1>
-              <p className="muted regatta-meta">
-                {regatta?.year} · {formatShortDate(regatta?.start_at)} to{" "}
-                {formatShortDate(regatta?.end_at)}
-              </p>
-            </>
-          )}
+          <div className="regatta-hero-body">
+            {loading ? (
+              <div className="skeleton-list">
+                <div className="skeleton skeleton-title" />
+                <div className="skeleton skeleton-line" />
+              </div>
+            ) : loadError ? (
+              <p className="muted">{loadError}</p>
+            ) : (
+              <>
+                <h1 className="title">{regatta?.name}</h1>
+                <p className="muted regatta-meta">
+                  {regatta?.year} · {formatShortDate(regatta?.start_at)} to{" "}
+                  {formatShortDate(regatta?.end_at)}
+                </p>
+              </>
+            )}
+          </div>
         </section>
 
         <section className="card">
