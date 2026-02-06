@@ -1,3 +1,12 @@
+import Link from "next/link";
+
 export default function Header({ title }) {
-  return <h1 className="title">{title}</h1>
+  return (
+    <header className="site-header">
+      <Link href="/" className="site-brand">
+        Regatta Results
+      </Link>
+      {title ? <span className="site-title">{title}</span> : null}
+    </header>
+  );
 }

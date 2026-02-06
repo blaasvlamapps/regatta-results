@@ -1,5 +1,4 @@
 import Head from "next/head";
-import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
 
 function getDataField(row, keys) {
@@ -110,6 +109,7 @@ export default function RegattaPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [expanded, setExpanded] = useState([]);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const dateFormatter = useMemo(
     () =>
@@ -169,6 +169,16 @@ export default function RegattaPage() {
     return () => {
       mounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    function handleScroll() {
+      setIsCollapsed(window.scrollY > 120);
+    }
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   const statuses = useMemo(() => {
@@ -231,9 +241,35 @@ export default function RegattaPage() {
     <div className="container">
       <Head>
         <title>{regatta ? `${regatta.name} | Regatta` : "Regatta"}</title>
+        <meta
+          name="description"
+          content={
+            regatta
+              ? `Browse ${regatta.name} (${regatta.year}) with events, lane draws, and results.`
+              : "Browse regatta events, lane draws, and results."
+          }
+        />
+        <meta
+          property="og:title"
+          content={regatta ? `${regatta.name} | Regatta` : "Regatta"}
+        />
+        <meta
+          property="og:description"
+          content={
+            regatta
+              ? `Browse ${regatta.name} (${regatta.year}) with events, lane draws, and results.`
+              : "Browse regatta events, lane draws, and results."
+          }
+        />
+        <meta property="og:type" content="website" />
       </Head>
       <main>
-        <section className="card">
+        <section
+          className={`card regatta-hero ${isCollapsed ? "is-collapsed" : ""}`}
+        >
+          <a href="/" className="compact-back">
+            Regatta Results
+          </a>
           {loading ? (
             <div className="skeleton-list">
               <div className="skeleton skeleton-title" />
@@ -244,7 +280,7 @@ export default function RegattaPage() {
           ) : (
             <>
               <h1 className="title">{regatta?.name}</h1>
-              <p className="muted">
+              <p className="muted regatta-meta">
                 {regatta?.year} · {formatShortDate(regatta?.start_at)} to{" "}
                 {formatShortDate(regatta?.end_at)}
               </p>
@@ -269,12 +305,24 @@ export default function RegattaPage() {
               <div className="search-form">
                 <label className="field">
                   <span>Filter</span>
-                  <input
-                    type="text"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Event, race, athlete, or school"
-                  />
+                  <div className="input-wrap">
+                    <input
+                      type="text"
+                      value={query}
+                      onChange={(event) => setQuery(event.target.value)}
+                      placeholder="Event, race, athlete, or school"
+                    />
+                    {query ? (
+                      <button
+                        type="button"
+                        className="clear-button"
+                        onClick={() => setQuery("")}
+                        aria-label="Clear search"
+                      >
+                        x
+                      </button>
+                    ) : null}
+                  </div>
                 </label>
                 <label className="field">
                   <span>Status</span>

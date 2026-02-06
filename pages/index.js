@@ -1,7 +1,6 @@
 import Head from "next/head";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Header from "@components/Header";
 import Footer from "@components/Footer";
 
 export default function Home() {
@@ -42,14 +41,23 @@ export default function Home() {
   return (
     <div className="container">
       <Head>
-        <title>Regatta Results</title>
+        <title>Regatta Results | Home</title>
         <link rel="icon" href="/favicon.ico" />
+        <meta
+          name="description"
+          content="Explore regatta results by year and dive into event details, lane draws, and race results."
+        />
+        <meta property="og:title" content="Regatta Results" />
+        <meta
+          property="og:description"
+          content="Explore regatta results by year and dive into event details, lane draws, and race results."
+        />
+        <meta property="og:type" content="website" />
       </Head>
 
       <main>
-        <Header title="Regatta Results" />
-
         <section className="card">
+          <h1 className="title">Regatta Results</h1>
           <h2>Regattas by year</h2>
           {loading ? (
             <div className="skeleton-list">

@@ -1,11 +1,27 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+:root {
+  color-scheme: light;
+  --bg: #f4f6fb;
+  --bg-accent: #e8eef7;
+  --card: #ffffff;
+  --card-border: rgba(148, 163, 184, 0.25);
+  --text: #0f172a;
+  --muted: #64748b;
+  --primary: #4f46e5;
+  --primary-dark: #4338ca;
+  --link: #2563eb;
+  --border: #e2e8f0;
+  --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+}
+
 html,
 body {
-  background: radial-gradient(circle at top, #f8fafc 0%, #eef2f7 45%, #e2e8f0 100%);
+  background: radial-gradient(circle at top, var(--bg-accent) 0%, var(--bg) 45%, #ffffff 100%);
   padding: 0;
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell,
-    Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
-  color: #0f172a;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--text);
 }
 
 * {
@@ -41,14 +57,36 @@ code {
   letter-spacing: -0.02em;
 }
 
+.site-header {
+  width: min(1100px, 92vw);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.site-brand {
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: none;
+  font-size: 1.05rem;
+}
+
+.site-brand:hover {
+  text-decoration: underline;
+}
+
+.site-title {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
 .card {
   width: min(1100px, 92vw);
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--card);
   border-radius: 20px;
   padding: 2rem;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
-  backdrop-filter: blur(6px);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow);
 }
 
 .card h2 {
@@ -56,7 +94,7 @@ code {
 }
 
 .muted {
-  color: #64748b;
+  color: var(--muted);
   margin: 0.75rem 0 0;
 }
 
@@ -114,7 +152,7 @@ code {
   display: grid;
   gap: 0.4rem;
   font-size: 0.9rem;
-  color: #334155;
+  color: var(--muted);
 }
 
 .field input,
@@ -124,7 +162,7 @@ code {
   border-radius: 12px;
   border: 1px solid #cbd5f5;
   background: #f8fafc;
-  color: #0f172a;
+  color: var(--text);
   font-size: 1rem;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -132,15 +170,51 @@ code {
 .field input:focus,
 .field select:focus {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+}
+
+.input-wrap {
+  position: relative;
+}
+
+.input-wrap input {
+  padding-right: 2.5rem;
+}
+
+.clear-button {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  border: 1px solid #cbd5f5;
+  background: #ffffff;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clear-button:hover {
+  color: var(--text);
+  border-color: #94a3b8;
+}
+
+.clear-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
 }
 
 .search-form button {
-  padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 12px;
-  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
   color: white;
   font-weight: 600;
   cursor: pointer;
@@ -148,8 +222,7 @@ code {
 }
 
 .search-form button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 10px 20px rgba(79, 70, 229, 0.25);
 }
 
 .search-form button:disabled {
@@ -170,12 +243,12 @@ code {
   grid-template-columns: 1.4fr 1.5fr 1fr 1fr 1fr 0.6fr 0.7fr;
   padding: 0.6rem 0.2rem;
   font-size: 0.9rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border);
   cursor: pointer;
 }
 
 .results-row a {
-  color: #1d4ed8;
+  color: var(--link);
   text-decoration: none;
 }
 
@@ -193,7 +266,7 @@ code {
   border-radius: 14px;
   padding: 1rem 1.5rem;
   margin: 0.6rem 0 1.5rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
 }
 
 .detail-section {
@@ -326,7 +399,7 @@ code {
 
 .detail-header {
   font-weight: 600;
-  color: #0f172a;
+  color: var(--text);
 }
 
 .detail-row {
@@ -336,13 +409,13 @@ code {
 .detail-divider {
   grid-column: 1 / -1;
   height: 1px;
-  background: #e2e8f0;
+  background: var(--border);
   margin: 0.35rem 0;
 }
 
 .results-header {
   font-weight: 600;
-  color: #0f172a;
+  color: var(--text);
   border-bottom: 2px solid #cbd5f5;
   cursor: default;
 }
@@ -355,8 +428,8 @@ code {
 
 .accordion-item {
   border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.3);
-  background: #ffffff;
+  border: 1px solid var(--card-border);
+  background: var(--card);
   overflow: hidden;
 }
 
@@ -368,7 +441,7 @@ code {
   align-items: center;
   justify-content: space-between;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--text);
 }
 
 .accordion-summary::-webkit-details-marker {
@@ -378,7 +451,7 @@ code {
 .accordion-summary::after {
   content: "▾";
   font-size: 0.9rem;
-  color: #64748b;
+  color: var(--muted);
   margin-left: 0.5rem;
 }
 
@@ -389,7 +462,7 @@ code {
 .accordion-count {
   font-size: 0.85rem;
   font-weight: 500;
-  color: #64748b;
+  color: var(--muted);
 }
 
 .accordion-content {
@@ -401,8 +474,44 @@ code {
 }
 
 .accordion-content a {
-  color: #1d4ed8;
+  color: var(--link);
   text-decoration: none;
+}
+
+.regatta-hero {
+  position: sticky;
+  top: 0.75rem;
+  z-index: 5;
+  transition: padding 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.compact-back {
+  position: absolute;
+  right: 1.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.compact-back:hover {
+  color: var(--text);
+}
+
+.regatta-hero.is-collapsed {
+  padding: 0.85rem 1.5rem;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1);
+}
+
+.regatta-hero.is-collapsed .title {
+  font-size: 1.4rem;
+  margin-bottom: 0.25rem;
+}
+
+.regatta-hero.is-collapsed .regatta-meta {
+  font-size: 0.85rem;
+  margin: 0;
 }
 
 .accordion-content a:hover {

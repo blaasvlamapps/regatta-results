@@ -169,6 +169,46 @@ function inferCrew(row) {
   return pickFirst(row, ["crew", "boat", "entry", "club", "school"]);
 }
 
+function valuesMatchHeader(values, headers) {
+  return values.length > 0 && values.every((value) => headers.has(value));
+}
+
+function isLaneDrawHeaderRow(row) {
+  const values = Object.values(row)
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean);
+  const headerValues = new Set(["lane", "boat", "org. name", "athletes"]);
+  return valuesMatchHeader(values, headerValues);
+}
+
+function isResultsHeaderRow(row) {
+  const values = Object.values(row)
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean);
+  const headerValues = new Set([
+    "place",
+    "lane",
+    "boat id",
+    "org. name",
+    "finish time",
+    "split",
+    "delta",
+    "status",
+    "athlete",
+  ]);
+  return valuesMatchHeader(values, headerValues);
+}
+
+function laneRowHasData(row) {
+  const lane = String(row.lane || "").trim().toLowerCase();
+  const crew = String(row.crew || "").trim().toLowerCase();
+  const school = String(row.school || "").trim().toLowerCase();
+  if (lane && lane !== "lane") return true;
+  if (crew && crew !== "athletes") return true;
+  if (school && school !== "org. name") return true;
+  return false;
+}
+
 async function fetchHtml(url) {
   const response = await fetch(url, {
     headers: { "User-Agent": USER_AGENT },
@@ -221,19 +261,35 @@ async function upsertEventAndRace(client, regatta, row) {
   return raceResult.rows[0];
 }
 
-async function handleLaneDraw(client, raceId, detailsUrl) {
-  const exists = await client.query(
-    "SELECT 1 FROM regatta_lane_draw_rows WHERE race_id = $1 LIMIT 1",
+async function handleLaneDraw(client, raceId, detailsUrl, forceRefresh) {
+  const existingRows = await client.query(
+    "SELECT lane, crew, school, data FROM regatta_lane_draw_rows WHERE race_id = $1",
     [raceId]
   );
-  if (exists.rowCount > 0) return;
+  if (existingRows.rowCount > 0) {
+    if (!forceRefresh) return;
+    const hasData = existingRows.rows.some((row) => laneRowHasData(row));
+    if (hasData) return { status: "skipped_existing" };
+    await client.query("DELETE FROM regatta_lane_draw_rows WHERE race_id = $1", [
+      raceId,
+    ]);
+  }
 
-  const html = await fetchHtml(detailsUrl);
-  const $ = cheerio.load(html);
-  const { rows } = extractTable($);
-  if (!rows.length) return;
+  let rows = [];
+  try {
+    const html = await fetchHtml(detailsUrl);
+    const $ = cheerio.load(html);
+    const result = extractTable($);
+    rows = result.rows;
+  } catch (error) {
+    console.error(`Lane draw fetch failed for race ${raceId}`, detailsUrl, error);
+    throw error;
+  }
+  if (!rows.length) return { status: "empty" };
 
+  let inserted = 0;
   for (const row of rows) {
+    if (isLaneDrawHeaderRow(row)) continue;
     const lane = inferLane(row);
     const crew = inferCrew(row);
     const school = inferSchool(row);
@@ -242,7 +298,9 @@ async function handleLaneDraw(client, raceId, detailsUrl) {
        VALUES ($1, $2, $3, $4, $5)`,
       [raceId, lane, crew, school, row]
     );
+    inserted += 1;
   }
+  return { status: inserted > 0 ? "fetched" : "empty" };
 }
 
 async function handleResults(client, raceId, detailsUrl) {
@@ -250,14 +308,23 @@ async function handleResults(client, raceId, detailsUrl) {
     "SELECT 1 FROM regatta_results_rows WHERE race_id = $1 LIMIT 1",
     [raceId]
   );
-  if (exists.rowCount > 0) return;
+  if (exists.rowCount > 0) return { status: "skipped_existing" };
 
-  const html = await fetchHtml(detailsUrl);
-  const $ = cheerio.load(html);
-  const { rows } = extractTable($);
-  if (!rows.length) return;
+  let rows = [];
+  try {
+    const html = await fetchHtml(detailsUrl);
+    const $ = cheerio.load(html);
+    const result = extractTable($);
+    rows = result.rows;
+  } catch (error) {
+    console.error(`Results fetch failed for race ${raceId}`, detailsUrl, error);
+    throw error;
+  }
+  if (!rows.length) return { status: "empty" };
 
+  let inserted = 0;
   for (const row of rows) {
+    if (isResultsHeaderRow(row)) continue;
     const position = inferPosition(row);
     const athlete = inferAthlete(row);
     const school = inferSchool(row);
@@ -266,13 +333,24 @@ async function handleResults(client, raceId, detailsUrl) {
        VALUES ($1, $2, $3, $4, $5)`,
       [raceId, position, athlete, school, row]
     );
+    inserted += 1;
   }
+  return { status: inserted > 0 ? "fetched" : "empty" };
 }
 
 async function processRegatta(client, regatta) {
-  const html = await fetchHtml(regatta.url);
-  const $ = cheerio.load(html);
-  const table = findEventTable($);
+  const startedAt = Date.now();
+  console.log(`Scraping regatta: ${regatta.name} (${regatta.year})`);
+  let table = null;
+  let $ = null;
+  try {
+    const html = await fetchHtml(regatta.url);
+    $ = cheerio.load(html);
+    table = findEventTable($);
+  } catch (error) {
+    console.error(`Failed to load regatta page ${regatta.url}`, error);
+    throw error;
+  }
 
   const events = [];
   table.find("tr").each((_, tr) => {
@@ -305,30 +383,168 @@ async function processRegatta(client, regatta) {
     });
   });
 
-  for (const row of events) {
-    const race = await upsertEventAndRace(client, regatta, row);
-    if (!race || !race.details_url || !race.details_type) continue;
+  console.log(`Found ${events.length} event rows for ${regatta.name}`);
 
-    if (race.details_type === "lane_draw") {
-      await handleLaneDraw(client, race.id, race.details_url);
-    } else if (race.details_type === "results") {
-      await handleResults(client, race.id, race.details_url);
+  const existingLaneRows = await client.query(
+    `SELECT r.id AS race_id,
+            bool_or(
+              (coalesce(lower(ld.lane), '') NOT IN ('', 'lane'))
+              OR (coalesce(lower(ld.crew), '') NOT IN ('', 'athletes'))
+              OR (coalesce(lower(ld.school), '') NOT IN ('', 'org. name'))
+            ) AS has_data
+     FROM regatta_lane_draw_rows ld
+     JOIN regatta_races r ON r.id = ld.race_id
+     JOIN regatta_events e ON e.id = r.event_id
+     WHERE e.regatta_uuid = $1
+     GROUP BY r.id`,
+    [regatta.uuid]
+  );
+  const laneDrawHasData = new Set(
+    existingLaneRows.rows.filter((row) => row.has_data).map((row) => row.race_id)
+  );
+  const laneDrawExisting = new Set(
+    existingLaneRows.rows.map((row) => row.race_id)
+  );
+
+  const existingResultsRows = await client.query(
+    `SELECT r.id AS race_id
+     FROM regatta_results_rows rr
+     JOIN regatta_races r ON r.id = rr.race_id
+     JOIN regatta_events e ON e.id = r.event_id
+     WHERE e.regatta_uuid = $1
+     GROUP BY r.id`,
+    [regatta.uuid]
+  );
+  const resultsExisting = new Set(
+    existingResultsRows.rows.map((row) => row.race_id)
+  );
+
+  const eventStatusMap = events.reduce((acc, row) => {
+    const eventId = row.eventId;
+    if (!eventId) return acc;
+    if (!acc[eventId]) {
+      acc[eventId] = { heats: [], finals: [] };
+    }
+    const label = String(row.raceLabel || "").toLowerCase();
+    if (label.includes("heat")) {
+      acc[eventId].heats.push(row);
+    } else if (label.includes("final")) {
+      acc[eventId].finals.push(row);
+    }
+    return acc;
+  }, {});
+
+  let laneDrawFetched = 0;
+  let resultsFetched = 0;
+  let laneDrawSkipped = 0;
+  let resultsSkipped = 0;
+  let emptyDetails = 0;
+  let skippedMissingDetails = 0;
+  let totalFetches = 0;
+  const maxFetches = Number(process.env.SCRAPE_MAX_FETCHES || 60);
+
+  for (const [index, row] of events.entries()) {
+    try {
+      const race = await upsertEventAndRace(client, regatta, row);
+      if (!race || !race.details_url || !race.details_type) {
+        skippedMissingDetails += 1;
+        continue;
+      }
+
+      if (race.details_type === "lane_draw") {
+        const eventStatus = eventStatusMap[row.eventId] || { heats: [] };
+        const heatsComplete =
+          eventStatus.heats.length > 0 &&
+          eventStatus.heats.every((heat) =>
+            String(heat.status || "").toLowerCase().includes("official")
+          );
+        const isFinal = String(row.raceLabel || "")
+          .toLowerCase()
+          .includes("final");
+        const forceRefresh = isFinal && heatsComplete;
+        if (
+          laneDrawHasData.has(race.id) ||
+          (!forceRefresh && laneDrawExisting.has(race.id))
+        ) {
+          laneDrawSkipped += 1;
+          continue;
+        }
+        const outcome = await handleLaneDraw(
+          client,
+          race.id,
+          race.details_url,
+          forceRefresh
+        );
+        if (outcome?.status === "fetched") {
+          laneDrawFetched += 1;
+          totalFetches += 1;
+          laneDrawHasData.add(race.id);
+          laneDrawExisting.add(race.id);
+        } else if (outcome?.status === "skipped_existing") {
+          laneDrawSkipped += 1;
+        } else {
+          emptyDetails += 1;
+        }
+      } else if (race.details_type === "results") {
+        if (resultsExisting.has(race.id)) {
+          resultsSkipped += 1;
+          continue;
+        }
+        const outcome = await handleResults(client, race.id, race.details_url);
+        if (outcome?.status === "fetched") {
+          resultsFetched += 1;
+          totalFetches += 1;
+          resultsExisting.add(race.id);
+        } else if (outcome?.status === "skipped_existing") {
+          resultsSkipped += 1;
+        } else {
+          emptyDetails += 1;
+        }
+      }
+
+      if ((index + 1) % 25 === 0) {
+        console.log(
+          `Processed ${index + 1}/${events.length} rows for ${regatta.name}`
+        );
+      }
+      if (totalFetches >= maxFetches) {
+        console.log(
+          `Reached max fetches (${maxFetches}) for ${regatta.name}, stopping early`
+        );
+        break;
+      }
+    } catch (error) {
+      console.error(
+        `Failed event row for ${regatta.name} (${row.eventId} ${row.raceLabel})`,
+        error
+      );
+      continue;
     }
 
-    await sleep(250);
+    if (totalFetches > 0) {
+      await sleep(250);
+    }
   }
+
+  const elapsedMs = Date.now() - startedAt;
+  console.log(
+    `Finished ${regatta.name}: lane_draw=${laneDrawFetched}, results=${resultsFetched}, lane_draw_skipped=${laneDrawSkipped}, results_skipped=${resultsSkipped}, empty=${emptyDetails}, skipped=${skippedMissingDetails}, elapsed=${elapsedMs}ms`
+  );
 }
 
-exports.handler = schedule("*/10 * * * *", async () => {
+exports.handler = schedule("*/15 * * * *", async () => {
   const client = await pool.connect();
   try {
     const { rows: regattas } = await client.query(
       `SELECT uuid, name, year, url
        FROM regattas
-       WHERE start_at IS NOT NULL
+       WHERE is_active = TRUE
+         AND start_at IS NOT NULL
          AND end_at IS NOT NULL
          AND now() BETWEEN start_at AND end_at`
     );
+
+    console.log(`Found ${regattas.length} regattas to process`);
 
     for (const regatta of regattas) {
       try {
