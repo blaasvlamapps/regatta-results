@@ -1,6 +1,7 @@
 import Head from "next/head";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Nav from "@components/Nav";
 import Footer from "@components/Footer";
 
 export default function Home() {
@@ -56,6 +57,7 @@ export default function Home() {
       </Head>
 
       <main>
+        <Nav />
         <section className="card">
           <h1 className="title">Regatta Results</h1>
           <h2>Regattas by year</h2>
