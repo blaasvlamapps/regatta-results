@@ -87,7 +87,7 @@ export default function Home() {
                   <ul className="accordion-content">
                     {entry.regattas.map((regatta) => (
                       <li key={regatta.uuid}>
-                        <Link href={`/regattas/${regatta.uuid}`}>
+                        <Link href={`/regattas/${regatta.slug || regatta.uuid}`}>
                           {regatta.name}
                         </Link>
                       </li>

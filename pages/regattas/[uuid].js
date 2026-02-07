@@ -1,6 +1,8 @@
 import Head from "next/head";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
+
+const { pool } = require("../../lib/db");
 import Nav from "@components/Nav";
 
 function getDataField(row, keys) {
@@ -36,12 +38,46 @@ function getDataField(row, keys) {
     );
   }
 
+  function getResultLane(row) {
+    return getDataField(row, ["Lane", "col_2"]) || "—";
+  }
+
   function getResultTime(row) {
     return (
       getDataField(row, ["Finish Time", "Time", "Result", "col_5"]) || "—"
     );
   }
 
+  function getResultSplit(row) {
+    return getDataField(row, ["Split", "col_6"]) || "—";
+  }
+
+  function getResultDelta(row) {
+    return getDataField(row, ["Delta", "col_7"]) || "—";
+  }
+
+  function isNumericValue(value) {
+    const text = String(value || "").trim();
+    return Boolean(text) && /^[0-9]+$/.test(text);
+  }
+
+  function normalizeResultRow(row) {
+    let lane = getResultLane(row);
+    let school = getResultSchool(row);
+    if (!isNumericValue(lane) && isNumericValue(school)) {
+      const swapped = lane;
+      lane = school;
+      school = swapped;
+    }
+    return {
+      lane,
+      school,
+      athlete: getResultAthlete(row),
+      time: getResultTime(row),
+      split: getResultSplit(row),
+      delta: getResultDelta(row),
+    };
+  }
   function getLaneNumber(row) {
     return row.lane || getDataField(row, ["Lane", "col_1"]) || "—";
   }
@@ -95,11 +131,17 @@ function getDataField(row, keys) {
     const athlete = getResultAthlete(row);
     const school = getResultSchool(row);
     const time = getResultTime(row);
+    const lane = getResultLane(row);
+    const split = getResultSplit(row);
+    const delta = getResultDelta(row);
     return (
       position === "Place" ||
       athlete === "Athlete" ||
       school === "Org. Name" ||
-      time === "Finish Time"
+      time === "Finish Time" ||
+      lane === "Lane" ||
+      split === "Split" ||
+      delta === "Delta"
     );
   }
 
@@ -146,12 +188,12 @@ export default function RegattaPage() {
     let mounted = true;
     async function loadRegatta() {
       if (!router.isReady) return;
-      const uuid =
+      const slugOrId =
         typeof router.query.uuid === "string" ? router.query.uuid : "";
-      if (!uuid) return;
+      if (!slugOrId) return;
       setLoading(true);
       try {
-        const response = await fetch(`/api/regattas/${uuid}`);
+        const response = await fetch(`/api/regattas/${slugOrId}`);
         if (!response.ok) {
           throw new Error("Failed to load regatta");
         }
@@ -160,6 +202,18 @@ export default function RegattaPage() {
           setRegatta(data.regatta || null);
           setRaces(data.races || []);
           setLoadError("");
+          const regattaSlug = data.regatta?.slug;
+          const regattaId = data.regatta?.uuid;
+          if (
+            regattaSlug &&
+            regattaId &&
+            slugOrId === regattaId &&
+            regattaSlug !== slugOrId
+          ) {
+            router.replace(`/regattas/${regattaSlug}`, undefined, {
+              shallow: true,
+            });
+          }
         }
       } catch (error) {
         if (mounted) {
@@ -406,35 +460,46 @@ export default function RegattaPage() {
                             <div className="detail-section">
                               <h3>Results</h3>
                               <div className="detail-grid">
-                                <span className="detail-header">Position</span>
+                                <span className="detail-header">Lane</span>
+                                <span className="detail-header">School</span>
                                 <span className="detail-header">
                                   Athlete/Crew
                                 </span>
-                                <span className="detail-header">School</span>
                                 <span className="detail-header">Time</span>
+                                <span className="detail-header">Split</span>
+                                <span className="detail-header">Delta</span>
                                 {race.results_rows
                                   .filter((row) => !isResultHeaderRow(row))
-                                  .map((row, index, list) => (
+                                  .map((row, index, list) => {
+                                    const normalized = normalizeResultRow(row);
+                                    return (
                                     <Fragment key={`res-${index}`}>
                                       <div className="detail-row detail-row-results">
-                                        <span data-label="Position">
-                                          {getResultPosition(row)}
-                                        </span>
-                                        <span data-label="Athlete/Crew">
-                                          {getResultAthlete(row)}
+                                        <span data-label="Lane">
+                                          {normalized.lane}
                                         </span>
                                         <span data-label="School">
-                                          {getResultSchool(row)}
+                                          {normalized.school}
+                                        </span>
+                                        <span data-label="Athlete/Crew">
+                                          {normalized.athlete}
                                         </span>
                                         <span data-label="Time">
-                                          {getResultTime(row)}
+                                          {normalized.time}
+                                        </span>
+                                        <span data-label="Split">
+                                          {normalized.split}
+                                        </span>
+                                        <span data-label="Delta">
+                                          {normalized.delta}
                                         </span>
                                       </div>
                                       {index < list.length - 1 ? (
                                         <div className="detail-divider" />
                                       ) : null}
                                     </Fragment>
-                                  ))}
+                                    );
+                                  })}
                               </div>
                             </div>
                           ) : null}
@@ -445,9 +510,9 @@ export default function RegattaPage() {
                               <h3>Lane draw</h3>
                               <div className="detail-grid lane-grid">
                                 <span className="detail-header">Lane</span>
+                                <span className="detail-header">School</span>
                                 <span className="detail-header">Boat</span>
                                 <span className="detail-header">Athletes</span>
-                                <span className="detail-header">School</span>
                                 {race.lane_draw_rows
                                   .filter((row) => !isLaneHeaderRow(row))
                                   .map((row, index, list) => (
@@ -456,14 +521,14 @@ export default function RegattaPage() {
                                         <span data-label="Lane">
                                           {getLaneNumber(row)}
                                         </span>
+                                        <span data-label="School">
+                                          {getLaneSchool(row)}
+                                        </span>
                                         <span data-label="Boat">
                                           {getLaneBoat(row)}
                                         </span>
                                         <span data-label="Athletes">
                                           {getLaneCrew(row)}
-                                        </span>
-                                        <span data-label="School">
-                                          {getLaneSchool(row)}
                                         </span>
                                       </div>
                                       {index < list.length - 1 ? (
@@ -493,4 +558,35 @@ export default function RegattaPage() {
       </main>
     </div>
   );
+}
+
+export async function getServerSideProps({ params }) {
+  const slugOrId = params?.uuid;
+  if (!slugOrId) {
+    return { notFound: true };
+  }
+
+  const { rows } = await pool.query(
+    `SELECT uuid, slug
+     FROM regattas
+     WHERE uuid::text = $1 OR slug = $1
+     LIMIT 1`,
+    [slugOrId]
+  );
+
+  if (!rows.length) {
+    return { notFound: true };
+  }
+
+  const regatta = rows[0];
+  if (regatta.slug && regatta.slug !== slugOrId) {
+    return {
+      redirect: {
+        destination: `/regattas/${regatta.slug}`,
+        permanent: false,
+      },
+    };
+  }
+
+  return { props: {} };
 }

@@ -106,7 +106,7 @@ export default function Nav() {
                             className="nav-link"
                             onClick={() => {
                               setOpen(false);
-                              router.push(`/regattas/${regatta.uuid}`);
+                              router.push(`/regattas/${regatta.slug || regatta.uuid}`);
                             }}
                           >
                             {regatta.name}
