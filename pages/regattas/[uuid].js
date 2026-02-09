@@ -78,6 +78,17 @@ function getDataField(row, keys) {
       delta: getResultDelta(row),
     };
   }
+
+  function formatDetailsType(value) {
+    const text = String(value || "").replace(/_/g, " ").trim();
+    if (!text) return "—";
+    return text
+      .split(/\s+/)
+      .map((word) =>
+        word ? word[0].toUpperCase() + word.slice(1).toLowerCase() : ""
+      )
+      .join(" ");
+  }
   function getLaneNumber(row) {
     return row.lane || getDataField(row, ["Lane", "col_1"]) || "—";
   }
@@ -437,21 +448,28 @@ export default function RegattaPage() {
                           {race.event_id} {race.event_name}
                         </span>
                         <span>{race.race_label}</span>
-                        <span>{formatShortDate(race.race_date)}</span>
-                        <span>{formatTime(race.race_time)}</span>
+                        <span className="race-date">
+                          {formatShortDate(race.race_date)}{" "}
+                          {formatTime(race.race_time) !== "—"
+                            ? formatTime(race.race_time)
+                            : ""}
+                        </span>
+                        <span className="race-time">
+                          {formatTime(race.race_time)}
+                        </span>
                         <span>{race.status || "—"}</span>
                         <span>{race.progression || "—"}</span>
-                        <span>
-                          {race.details_type || "—"}{" "}
-                          {(race.lane_draw_rows?.length ||
-                            race.results_rows?.length) &&
-                          expanded.includes(race.race_id)
-                            ? "▲"
-                            : (race.lane_draw_rows?.length ||
-                                race.results_rows?.length) &&
-                              !expanded.includes(race.race_id)
-                            ? "▼"
-                            : ""}
+                        <span className="details-cell">
+                          {formatDetailsType(race.details_type)}
+                          {race.lane_draw_rows?.length ||
+                          race.results_rows?.length ? (
+                            <span
+                              className="chevron-indicator"
+                              aria-hidden="true"
+                            >
+                              &nbsp;{expanded.includes(race.race_id) ? "▲" : "▼"}
+                            </span>
+                          ) : null}
                         </span>
                       </div>
                       {expanded.includes(race.race_id) ? (
