@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     }
 
     const { rows } = await pool.query(
-      `SELECT uuid, name, year, url, start_at, end_at
+      `SELECT uuid, slug, name, year, url, start_at, end_at
        FROM regattas
        ${whereClause}
        ORDER BY year DESC, start_at ASC`,
@@ -32,6 +32,7 @@ export default async function handler(req, res) {
       }
       acc[key].regattas.push({
         uuid: row.uuid,
+        slug: row.slug,
         name: row.name,
         url: row.url,
         start_at: row.start_at,

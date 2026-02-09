@@ -376,9 +376,8 @@ code {
   display: grid;
   gap: 0.75rem;
   grid-template-columns: 1.4fr 1.5fr 1fr 1fr 1fr 0.6fr 0.7fr;
-  padding: 0.6rem 0.2rem;
+  padding: 0.6rem 0.8em;
   font-size: 0.9rem;
-  border-bottom: 1px solid var(--border);
   cursor: pointer;
 }
 
@@ -392,15 +391,18 @@ code {
 }
 
 .results-row.is-expanded {
-  background: rgba(148, 163, 184, 0.12);
-  border-radius: 10px;
+  background: #16407bb8 !important;
+  color: #ffffff;
+}
+
+.results-table > div:nth-child(even) .results-row {
+  background: rgba(115, 129, 148, 0.123);
 }
 
 .expand-panel {
   background: #f8fafc;
-  border-radius: 14px;
   padding: 1rem 1.5rem;
-  margin: 0.6rem 0 1.5rem;
+  margin: 0;
   border: 1px solid var(--border);
 }
 
@@ -415,13 +417,13 @@ code {
 
 .detail-grid {
   display: grid;
-  grid-template-columns: 0.4fr 1.2fr 1fr 0.7fr;
+  grid-template-columns: 0.5fr 1.3fr 1.6fr 0.8fr 0.7fr 0.7fr;
   gap: 0.5rem 1rem;
   font-size: 0.9rem;
 }
 
 .detail-grid.lane-grid {
-  grid-template-columns: 0.35fr 0.8fr 1.6fr 1fr;
+  grid-template-columns: 0.35fr 1fr 0.8fr 1.6fr;
 }
 
 @media (max-width: 900px) {
@@ -467,54 +469,82 @@ code {
   }
 
   .results-row {
-    grid-template-columns: 1fr;
-    gap: 0.35rem;
-    padding: 0.8rem 0.2rem;
+    grid-template-columns: 2fr 1fr;
+    gap: 0.35rem 0.75rem;
+    padding: 0.8rem 0.8rem;
+    position: relative;
   }
 
   .results-row span {
     display: block;
   }
 
-  .results-row span:nth-child(1)::before {
-    content: "Event: ";
-    font-weight: 600;
+  .results-row span::before {
+    content: "";
   }
 
-  .results-row span:nth-child(2)::before {
-    content: "Race: ";
+  .results-row span:nth-child(3) {
+    grid-column: 1 / 2;
+    grid-row: 1;
     font-weight: 600;
+    font-size: 0.9em;
   }
 
-  .results-row span:nth-child(3)::before {
-    content: "Date: ";
-    font-weight: 600;
+  .results-row span:nth-child(5) {
+    grid-column: 2 / 3;
+    grid-row: 3;
+    text-align: right;
+    font-size: 0.9em;
   }
 
-  .results-row span:nth-child(4)::before {
-    content: "Time: ";
-    font-weight: 600;
+  .results-row span:nth-child(1) {
+    grid-column: 1 / 2;
+    grid-row: 2;
+    font-size: 1.1em;
   }
 
-  .results-row span:nth-child(5)::before {
-    content: "Status: ";
-    font-weight: 600;
+  .results-row span:nth-child(2) {
+    grid-column: 2 / 3;
+    grid-row: 2;
+    text-align: right;
+    font-size: 1.1em;
   }
 
-  .results-row span:nth-child(6)::before {
-    content: "Progression: ";
-    font-weight: 600;
+  .results-row span:nth-child(6) {
+    grid-column: 1 / 2;
+    grid-row: 3;
+    font-size: 0.9em;
   }
 
-  .results-row span:nth-child(7)::before {
-    content: "Details: ";
-    font-weight: 600;
+  .results-row span:nth-child(4),
+  .results-row span:nth-child(7) {
+    display: none;
   }
 
   .results-row span:nth-child(5),
-  .results-row span:nth-child(6),
-  .results-row span:nth-child(7) {
+  .results-row span:nth-child(6) {
     display: block;
+  }
+
+.results-row .chevron-indicator {
+  position: static;
+  font-size: 0.9em;
+  color: var(--muted);
+  display: inline-block;
+  margin-left: 0.5rem;
+}
+
+  .results-row .race-time {
+    display: none;
+  }
+
+  .results-row .race-date {
+    font-weight: 600;
+  }
+
+  .results-row .race-date::after {
+    content: " " attr(data-time);
+    font-weight: 600;
   }
 
   .detail-grid,
@@ -657,6 +687,23 @@ code {
 
 .compact-back:hover {
   color: var(--text);
+}
+
+@media (max-width: 640px) {
+  .results-row .details-cell {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.9em;
+    color: var(--muted);
+  }
+
+  .results-row .chevron-indicator {
+    margin-left: 0.15rem;
+  }
 }
 
 @media (max-width: 640px) {

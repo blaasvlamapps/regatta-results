@@ -6,17 +6,19 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const uuid = typeof req.query.uuid === "string" ? req.query.uuid : "";
-  if (!uuid) {
+  const slugOrId =
+    typeof req.query.uuid === "string" ? req.query.uuid : "";
+  if (!slugOrId) {
     return res.status(400).json({ error: "Missing regatta id" });
   }
 
   try {
     const regattaResult = await pool.query(
-      `SELECT uuid, name, year, url, start_at, end_at
+      `SELECT uuid, slug, name, year, url, start_at, end_at
        FROM regattas
-       WHERE uuid = $1`,
-      [uuid]
+       WHERE uuid::text = $1 OR slug = $1
+       LIMIT 1`,
+      [slugOrId]
     );
 
     if (!regattaResult.rowCount) {
@@ -39,8 +41,9 @@ export default async function handler(req, res) {
        FROM regatta_races r
        JOIN regatta_events e ON e.id = r.event_id
        WHERE e.regatta_uuid = $1
+         AND e.event_name NOT ILIKE '%break%'
        ORDER BY r.race_date ASC NULLS LAST, r.race_time ASC NULLS LAST`,
-      [uuid]
+      [regatta.uuid]
     );
 
     const laneDrawResult = await pool.query(
@@ -55,7 +58,7 @@ export default async function handler(req, res) {
        JOIN regatta_events e ON e.id = r.event_id
        WHERE e.regatta_uuid = $1
        ORDER BY ld.race_id ASC, ld.id ASC`,
-      [uuid]
+      [regatta.uuid]
     );
 
     const resultsResult = await pool.query(
@@ -70,7 +73,7 @@ export default async function handler(req, res) {
        JOIN regatta_events e ON e.id = r.event_id
        WHERE e.regatta_uuid = $1
        ORDER BY rr.race_id ASC, rr.id ASC`,
-      [uuid]
+      [regatta.uuid]
     );
 
     const laneDrawMap = laneDrawResult.rows.reduce((acc, row) => {
