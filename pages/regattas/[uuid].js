@@ -156,6 +156,80 @@ function getDataField(row, keys) {
     );
   }
 
+  function isHeatRace(race) {
+    return (race.race_label || "").toLowerCase().includes("heat");
+  }
+
+  function getHeatNumber(heatLabel) {
+    const text = String(heatLabel || "").trim();
+    const parts = text.split("-");
+    return parts[0] ? parts[0].trim() : text || "—";
+  }
+
+  function parseFinishTime(timeString) {
+    const text = String(timeString || "").trim();
+    if (!text || text === "—") return null;
+    
+    const parts = text.match(/^(\d+):(\d+)\.(\d+)$/);
+    if (!parts) return null;
+    
+    const minutes = parseInt(parts[1], 10);
+    const seconds = parseInt(parts[2], 10);
+    const milliseconds = parseInt(parts[3], 10);
+    
+    return (minutes * 60 + seconds) * 1000 + milliseconds;
+  }
+
+  function groupRacesByEvent(races) {
+    const groups = {};
+    races.forEach((race) => {
+      const key = `${race.event_id}|${race.event_name}`;
+      if (!groups[key]) {
+        groups[key] = {
+          event_id: race.event_id,
+          event_name: race.event_name,
+          races: [],
+        };
+      }
+      groups[key].races.push(race);
+    });
+    return Object.values(groups);
+  }
+
+  function getCombinedHeatResults(eventRaces) {
+    const heatRaces = eventRaces.filter(isHeatRace);
+    if (heatRaces.length === 0) return [];
+
+    const allResults = [];
+    heatRaces.forEach((race) => {
+      const results = (race.results_rows || [])
+        .filter((row) => !isResultHeaderRow(row))
+        .map((row) => {
+          const normalized = normalizeResultRow(row);
+          const timeMs = parseFinishTime(normalized.time);
+          return {
+            ...normalized,
+            heat_label: race.race_label,
+            original_position: getResultPosition(row),
+            timeMs,
+            isFinisher: timeMs !== null,
+          };
+        });
+      allResults.push(...results);
+    });
+
+    allResults.sort((a, b) => {
+      if (a.isFinisher && !b.isFinisher) return -1;
+      if (!a.isFinisher && b.isFinisher) return 1;
+      if (a.isFinisher && b.isFinisher) {
+        return a.timeMs - b.timeMs;
+      }
+      return 0;
+    });
+
+    return allResults;
+  }
+
 export default function RegattaPage() {
   const router = useRouter();
   const [regatta, setRegatta] = useState(null);
@@ -166,6 +240,7 @@ export default function RegattaPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [expanded, setExpanded] = useState([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [viewMode, setViewMode] = useState("by-heat");
 
   const dateFormatter = useMemo(
     () =>
@@ -412,11 +487,25 @@ export default function RegattaPage() {
                     ))}
                   </select>
                 </label>
+                <div className="view-toggle">
+                  <button 
+                    className={viewMode === "by-heat" ? "active" : ""} 
+                    onClick={() => setViewMode("by-heat")}
+                  >
+                    By Heat
+                  </button>
+                  <button 
+                    className={viewMode === "combined" ? "active" : ""} 
+                    onClick={() => setViewMode("combined")}
+                  >
+                    Combined Heats
+                  </button>
+                </div>
               </div>
 
               {filteredRaces.length === 0 ? (
                 <p className="muted">No races match that filter.</p>
-              ) : (
+              ) : viewMode === "by-heat" ? (
                 <div className="results-table">
                   <div className="results-row results-header">
                     <span>Event</span>
@@ -568,6 +657,99 @@ export default function RegattaPage() {
                       ) : null}
                     </div>
                   ))}
+                </div>
+              ) : (
+                <div className="combined-view">
+                  {groupRacesByEvent(filteredRaces).map((eventGroup) => {
+                    const combinedResults = getCombinedHeatResults(eventGroup.races);
+                    if (combinedResults.length === 0) return null;
+
+                    const heatRaces = eventGroup.races.filter(isHeatRace);
+                    const dateRange = heatRaces.length > 0 
+                      ? `${formatShortDate(heatRaces[0].race_date)} - ${formatShortDate(heatRaces[heatRaces.length - 1].race_date)}`
+                      : "—";
+                    
+                    const eventKey = `${eventGroup.event_id}-${eventGroup.event_name}`;
+                    const isExpanded = expanded.includes(eventKey);
+
+                    return (
+                      <div key={eventKey}>
+                        <div
+                          className={`results-row ${isExpanded ? "is-expanded" : ""}`}
+                          onClick={() => toggleExpanded(eventKey)}
+                          role="button"
+                          tabIndex={0}
+                          aria-expanded={isExpanded}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              toggleExpanded(eventKey);
+                            }
+                          }}
+                        >
+                          <span>
+                            {eventGroup.event_id} {eventGroup.event_name}
+                          </span>
+                          <span>{heatRaces.length} heat{heatRaces.length !== 1 ? 's' : ''}</span>
+                          <span className="race-date">
+                            {dateRange}
+                          </span>
+                          <span className="race-time"></span>
+                          <span></span>
+                          <span>{combinedResults.length} result{combinedResults.length !== 1 ? 's' : ''}</span>
+                          <span className="details-cell">
+                            Combined
+                            <span
+                              className="chevron-indicator"
+                              aria-hidden="true"
+                            >
+                              &nbsp;{isExpanded ? "▲" : "▼"}
+                            </span>
+                          </span>
+                        </div>
+                        {isExpanded ? (
+                          <div className="expand-panel">
+                            <div className="detail-section">
+                              <h3>Combined Heat Results</h3>
+                              <table className="combined-results-table">
+                                <thead>
+                                  <tr>
+                                    <th>Pos</th>
+                                    <th>Lane</th>
+                                    <th>School</th>
+                                    <th>Athlete/Crew</th>
+                                    <th>Time</th>
+                                    <th>Split</th>
+                                    <th>Delta</th>
+                                    <th>Heat</th>
+                                    <th>Original</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {combinedResults.map((result, index) => (
+                                    <tr key={index} className={result.isFinisher ? "" : "non-finisher"}>
+                                      <td>{result.isFinisher ? index + 1 : "—"}</td>
+                                      <td>{result.lane}</td>
+                                      <td>{result.school}</td>
+                                      <td>{result.athlete}</td>
+                                      <td>{result.isFinisher ? result.time : result.original_position}</td>
+                                      <td>{result.isFinisher ? result.split : "—"}</td>
+                                      <td>{result.isFinisher ? result.delta : "—"}</td>
+                                      <td>
+                                        <span className="heat-full">{result.heat_label}</span>
+                                        <span className="heat-short">{getHeatNumber(result.heat_label)}</span>
+                                      </td>
+                                      <td>{result.original_position}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </>
