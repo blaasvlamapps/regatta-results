@@ -478,7 +478,8 @@ code {
   
   .view-toggle button {
     flex: 1;
-    padding: 0.65rem 1rem;
+    padding: 0.65rem 0.5rem;
+    font-size: 0.9rem;
   }
 
   .results-header {
@@ -768,6 +769,34 @@ code {
 
 .view-toggle button:hover:not(.active) {
   background: rgba(148, 163, 184, 0.15);
+}
+
+.results-row span.event-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.favourite-star {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: #94a3b8;
+  font-size: 1.05rem;
+  line-height: 1;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.favourite-star.is-saved,
+.favourite-star:hover {
+  background: transparent;
+  box-shadow: none;
+  color: #f59e0b;
 }
 
 .combined-view {
