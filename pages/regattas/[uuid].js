@@ -5,6 +5,40 @@ import { useRouter } from "next/router";
 const { pool } = require("../../lib/db");
 import Nav from "@components/Nav";
 
+const FAVOURITES_COOKIE = "rr-favourites";
+const FAVOURITES_MAX_AGE = 60 * 60 * 24 * 365;
+
+function readFavouritesCookie() {
+  if (typeof document === "undefined") return {};
+  const entry = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith(`${FAVOURITES_COOKIE}=`));
+  if (!entry) return {};
+  const raw = entry.slice(FAVOURITES_COOKIE.length + 1);
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    try {
+      const parsed = JSON.parse(decodeURIComponent(raw));
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+}
+
+function writeFavouritesCookie(data) {
+  const value = encodeURIComponent(JSON.stringify(data));
+  document.cookie = `${FAVOURITES_COOKIE}=${value}; Path=/; SameSite=Lax; Max-Age=${FAVOURITES_MAX_AGE}`;
+}
+
+function favouriteIdsForRegatta(data, uuid) {
+  const raw = data?.[uuid];
+  if (!Array.isArray(raw)) return [];
+  return raw.map(Number).filter((id) => Number.isFinite(id));
+}
+
 function getDataField(row, keys) {
     if (!row || !row.data) return null;
     for (const key of keys) {
@@ -241,6 +275,8 @@ export default function RegattaPage() {
   const [expanded, setExpanded] = useState([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [viewMode, setViewMode] = useState("by-heat");
+  const [favouriteIds, setFavouriteIds] = useState([]);
+  const [favouritesFor, setFavouritesFor] = useState("");
 
   const dateFormatter = useMemo(
     () =>
@@ -321,6 +357,13 @@ export default function RegattaPage() {
   }, [router.isReady, router.query.uuid]);
 
   useEffect(() => {
+    if (!regatta?.uuid) return;
+    const ids = favouriteIdsForRegatta(readFavouritesCookie(), regatta.uuid);
+    setFavouriteIds(ids);
+    setFavouritesFor(regatta.uuid);
+  }, [regatta?.uuid]);
+
+  useEffect(() => {
     function handleScroll() {
       setIsCollapsed(window.scrollY > 120);
     }
@@ -377,6 +420,33 @@ export default function RegattaPage() {
       return inResults;
     });
   }, [query, races, statusFilter]);
+
+  const visibleRaces = useMemo(() => {
+    if (viewMode !== "favourites") return filteredRaces;
+    return filteredRaces.filter((race) =>
+      favouriteIds.includes(Number(race.race_id))
+    );
+  }, [filteredRaces, viewMode, favouriteIds]);
+
+  function toggleFavourite(raceId, event) {
+    event.stopPropagation();
+    const uuid = regatta?.uuid;
+    if (!uuid || favouritesFor !== uuid) return;
+    const id = Number(raceId);
+    setFavouriteIds((prev) => {
+      const next = prev.includes(id)
+        ? prev.filter((item) => item !== id)
+        : [...prev, id];
+      const all = readFavouritesCookie();
+      all[uuid] = next;
+      writeFavouritesCookie(all);
+      return next;
+    });
+  }
+
+  function isFavourite(raceId) {
+    return favouriteIds.includes(Number(raceId));
+  }
 
   function toggleExpanded(raceId) {
     setExpanded((prev) =>
@@ -500,12 +570,22 @@ export default function RegattaPage() {
                   >
                     Combined Heats
                   </button>
+                  <button
+                    className={viewMode === "favourites" ? "active" : ""}
+                    onClick={() => setViewMode("favourites")}
+                  >
+                    Favourites
+                  </button>
                 </div>
               </div>
 
-              {filteredRaces.length === 0 ? (
+              {viewMode === "favourites" && favouriteIds.length === 0 ? (
+                <p className="muted">No favourite races yet.</p>
+              ) : viewMode !== "combined" && visibleRaces.length === 0 ? (
                 <p className="muted">No races match that filter.</p>
-              ) : viewMode === "by-heat" ? (
+              ) : viewMode === "combined" && filteredRaces.length === 0 ? (
+                <p className="muted">No races match that filter.</p>
+              ) : viewMode !== "combined" ? (
                 <div className="results-table">
                   <div className="results-row results-header">
                     <span>Event</span>
@@ -516,7 +596,7 @@ export default function RegattaPage() {
                     <span>Progression</span>
                     <span>Details</span>
                   </div>
-                  {filteredRaces.map((race) => (
+                  {visibleRaces.map((race) => (
                     <div key={race.race_id}>
                       <div
                         className={`results-row ${
@@ -533,8 +613,31 @@ export default function RegattaPage() {
                           }
                         }}
                       >
-                        <span>
-                          {race.event_id} {race.event_name}
+                        <span className="event-cell">
+                          <button
+                            type="button"
+                            className={`favourite-star${
+                              isFavourite(race.race_id) ? " is-saved" : ""
+                            }`}
+                            aria-label={
+                              isFavourite(race.race_id)
+                                ? "Remove from favourites"
+                                : "Add to favourites"
+                            }
+                            aria-pressed={isFavourite(race.race_id)}
+                            onClick={(event) =>
+                              toggleFavourite(race.race_id, event)
+                            }
+                            onKeyDown={(event) => {
+                              event.stopPropagation();
+                              if (event.key === " ") event.preventDefault();
+                            }}
+                          >
+                            {isFavourite(race.race_id) ? "★" : "☆"}
+                          </button>
+                          <span>
+                            {race.event_id} {race.event_name}
+                          </span>
                         </span>
                         <span>{race.race_label}</span>
                         <span className="race-date">
