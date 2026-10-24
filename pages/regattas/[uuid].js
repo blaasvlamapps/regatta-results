@@ -39,11 +39,26 @@ function favouriteIdsForRegatta(data, uuid) {
   return raw.map(Number).filter((id) => Number.isFinite(id));
 }
 
-function getDataField(row, keys) {
+function normalizeDataKey(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  }
+
+  function getDataField(row, keys) {
     if (!row || !row.data) return null;
     for (const key of keys) {
       const value = row.data[key];
       if (value) return value;
+    }
+    const entries = Object.entries(row.data);
+    for (const key of keys) {
+      const wanted = normalizeDataKey(key);
+      const match = entries.find(
+        ([dataKey]) => normalizeDataKey(dataKey) === wanted
+      );
+      if (match && match[1]) return match[1];
     }
     return null;
   }
@@ -56,12 +71,45 @@ function getDataField(row, keys) {
     );
   }
 
-  function getResultAthlete(row) {
+  function isPlaceholder(value) {
+    const text = String(value ?? "").trim().toLowerCase();
     return (
-      row.athlete ||
-      getDataField(row, ["Athlete", "Competitor", "Name", "col_9"]) ||
-      "—"
+      !text ||
+      text === "—" ||
+      text === "-" ||
+      text === "–" ||
+      text === "athlete" ||
+      text === "athletes" ||
+      text === "crew" ||
+      text === "boat" ||
+      text === "boat id" ||
+      text === "boat name" ||
+      text === "n/a" ||
+      text === "na"
     );
+  }
+
+  function getResultBoat(row) {
+    const value = getDataField(row, ["Boat Name", "Boat", "Boat ID", "col_3"]);
+    const text = String(value ?? "").trim();
+    return text || null;
+  }
+
+  function getResultAthlete(row) {
+    const athlete =
+      row.athlete ||
+      getDataField(row, [
+        "Athlete",
+        "Athletes",
+        "Competitor",
+        "Crew",
+        "Name",
+        "col_9",
+      ]);
+    if (athlete && !isPlaceholder(athlete)) return String(athlete).trim();
+    const boat = getResultBoat(row);
+    if (boat && !isPlaceholder(boat)) return boat;
+    return athlete ? String(athlete).trim() : "—";
   }
 
   function getResultSchool(row) {
@@ -142,7 +190,25 @@ function getDataField(row, keys) {
   }
 
   function getLaneBoat(row) {
-    return getDataField(row, ["Boat", "Boat ID", "col_2"]) || "—";
+    return getDataField(row, ["Boat Name", "Boat", "Boat ID", "col_2"]) || "—";
+  }
+
+  function boatFromLaneDraw(laneDrawRows, lane) {
+    const laneText = String(lane ?? "").trim();
+    if (!laneText || laneText === "—") return null;
+    const match = (laneDrawRows || []).find((row) => {
+      if (isLaneHeaderRow(row)) return false;
+      return String(getLaneNumber(row)).trim() === laneText;
+    });
+    if (!match) return null;
+    const boat = getLaneBoat(match);
+    if (isPlaceholder(boat)) return null;
+    return boat;
+  }
+
+  function crewOrBoat(race, normalized) {
+    if (!isPlaceholder(normalized.athlete)) return normalized.athlete;
+    return boatFromLaneDraw(race?.lane_draw_rows, normalized.lane) || "—";
   }
 
   function getLaneSchool(row) {
@@ -243,6 +309,7 @@ function getDataField(row, keys) {
           const timeMs = parseFinishTime(normalized.time);
           return {
             ...normalized,
+            athlete: crewOrBoat(race, normalized),
             heat_label: race.race_label,
             original_position: getResultPosition(row),
             timeMs,
@@ -692,7 +759,7 @@ export default function RegattaPage() {
                                           {normalized.school}
                                         </span>
                                         <span data-label="Athlete/Crew">
-                                          {normalized.athlete}
+                                          {crewOrBoat(race, normalized)}
                                         </span>
                                         <span data-label="Time">
                                           {normalized.time}
